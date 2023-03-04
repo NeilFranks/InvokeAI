@@ -1,3 +1,6 @@
+*.png
+*.psd
+
 # ignore default image save location and model symbolic link
 outputs/
 models/ldm/stable-diffusion-v1/model.ckpt

@@ -7,6 +7,7 @@ import {
 } from 'features/options/store/optionsSlice';
 import CancelButton from 'features/options/components/ProcessButtons/CancelButton';
 import InvokeButton from 'features/options/components/ProcessButtons/InvokeButton';
+import StreamButton from 'features/options/components/ProcessButtons/StreamButton';
 import _ from 'lodash';
 import { setDoesCanvasNeedScaling } from 'features/canvas/store/canvasSlice';
 import { FaSlidersH } from 'react-icons/fa';
@@ -107,6 +108,7 @@ const FloatingOptionsPanelButtons = () => {
           <CancelButton />
         </>
       )}
+      <StreamButton iconButton />
     </div>
   ) : null;
 };

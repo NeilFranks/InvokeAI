@@ -88,6 +88,61 @@ const makeSocketIOEmitters = (
         })
       );
     },
+    emitStream: (generationMode: InvokeTabName) => {
+      dispatch(setIsProcessing(true));
+
+      const state: RootState = getState();
+
+      const {
+        options: optionsState,
+        system: systemState,
+        canvas: canvasState,
+      } = state;
+
+      const frontendToBackendParametersConfig: FrontendToBackendParametersConfig =
+        {
+          generationMode,
+          optionsState,
+          canvasState,
+          systemState,
+        };
+
+      dispatch(generationRequested());
+
+      const { generationParameters, esrganParameters, facetoolParameters } =
+        frontendToBackendParameters(frontendToBackendParametersConfig);
+
+      socketio.emit(
+        'stream',
+        generationParameters,
+        esrganParameters,
+        facetoolParameters
+      );
+
+      // we need to truncate the init_mask base64 else it takes up the whole log
+      // TODO: handle maintaining masks for reproducibility in future
+      if (generationParameters.init_mask) {
+        generationParameters.init_mask = generationParameters.init_mask
+          .substr(0, 64)
+          .concat('...');
+      }
+      if (generationParameters.init_img) {
+        generationParameters.init_img = generationParameters.init_img
+          .substr(0, 64)
+          .concat('...');
+      }
+
+      dispatch(
+        addLogEntry({
+          timestamp: dateFormat(new Date(), 'isoDateTime'),
+          message: `stream requested: ${JSON.stringify({
+            ...generationParameters,
+            ...esrganParameters,
+            ...facetoolParameters,
+          })}`,
+        })
+      );
+    },
     emitRunESRGAN: (imageToProcess: InvokeAI.Image) => {
       dispatch(setIsProcessing(true));
       const options: OptionsState = getState().options;

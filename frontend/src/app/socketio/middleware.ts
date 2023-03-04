@@ -130,6 +130,10 @@ export const socketioMiddleware = () => {
         emitGenerateImage(action.payload);
         break;
       }
+      case 'socketio/stream': {
+        emitGenerateImage(action.payload);
+        break;
+      }
 
       case 'socketio/runESRGAN': {
         emitRunESRGAN(action.payload);

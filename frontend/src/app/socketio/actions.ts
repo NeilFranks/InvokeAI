@@ -13,6 +13,9 @@ import * as InvokeAI from 'app/invokeai';
 export const generateImage = createAction<InvokeTabName>(
   'socketio/generateImage'
 );
+export const stream = createAction<InvokeTabName>(
+  'socketio/stream'
+);
 export const runESRGAN = createAction<InvokeAI.Image>('socketio/runESRGAN');
 export const runFacetool = createAction<InvokeAI.Image>('socketio/runFacetool');
 export const deleteImage = createAction<InvokeAI.Image>('socketio/deleteImage');

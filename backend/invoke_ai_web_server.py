@@ -5,10 +5,17 @@ import shutil
 import mimetypes
 import traceback
 import math
+import base64
+from io import BytesIO
 import io
 import base64
 import os
 import json
+import time
+import numpy as np
+import cv2
+from mss import mss
+from PIL import Image
 
 from werkzeug.utils import secure_filename
 from flask import Flask, redirect, send_from_directory, request, make_response
@@ -178,7 +185,8 @@ class InvokeAIWebServer:
                 (width, height) = pil_image.size
 
                 thumbnail_path = save_thumbnail(
-                    pil_image, os.path.basename(file_path), self.thumbnail_image_path
+                    pil_image, os.path.basename(
+                        file_path), self.thumbnail_image_path
                 )
 
                 response = {
@@ -222,16 +230,20 @@ class InvokeAIWebServer:
             useSSL = args.certfile or args.keyfile
             print(">> Started Invoke AI Web Server!")
             if self.host == "0.0.0.0":
+                url = "http{'s' if useSSL else ''}://localhost:{self.port}"
                 print(
-                    f"Point your browser at http{'s' if useSSL else ''}://localhost:{self.port} or use the host's DNS name or IP address."
+                    f"Point your browser at {url} or use the host's DNS name or IP address."
                 )
             else:
+                url = f"http{'s' if useSSL else ''}://{self.host}:{self.port}"
                 print(
                     ">> Default host address now 127.0.0.1 (localhost). Use --host 0.0.0.0 to bind any address."
                 )
                 print(
-                    f">> Point your browser at http{'s' if useSSL else ''}://{self.host}:{self.port}"
+                    f">> Point your browser at {url}"
                 )
+            import webbrowser
+            webbrowser.open(url, new=2)
             if not useSSL:
                 self.socketio.run(app=self.app, host=self.host, port=self.port)
             else:
@@ -247,10 +259,12 @@ class InvokeAIWebServer:
         my_dir = os.path.dirname(__file__)
         # LS: setup.py seems to put the frontend in different places on different systems, so
         # this is fragile and needs to be replaced with a better way of finding the front end.
-        for candidate in (os.path.join(my_dir,'..','frontend','dist'),          # pip install -e .
-                          os.path.join(my_dir,'../../../../frontend','dist'),   # pip install . (Linux, Mac)
-                          os.path.join(my_dir,'../../../frontend','dist'),      # pip install . (Windows)
-        ):
+        for candidate in (os.path.join(my_dir, '..', 'frontend', 'dist'),          # pip install -e .
+                          # pip install . (Linux, Mac)
+                          os.path.join(my_dir, '../../../../frontend', 'dist'),
+                          # pip install . (Windows)
+                          os.path.join(my_dir, '../../../frontend', 'dist'),
+                          ):
             if os.path.exists(candidate):
                 return candidate
         assert "Frontend files cannot be found. Cannot continue"
@@ -265,14 +279,16 @@ class InvokeAIWebServer:
         # location for "finished" images
         self.result_path = args.outdir
         # temporary path for intermediates
-        self.intermediate_path = os.path.join(self.result_path, "intermediates/")
+        self.intermediate_path = os.path.join(
+            self.result_path, "intermediates/")
         # path for user-uploaded init images and masks
         self.init_image_path = os.path.join(self.result_path, "init-images/")
         self.mask_image_path = os.path.join(self.result_path, "mask-images/")
         # path for temp images e.g. gallery generations which are not committed
         self.temp_image_path = os.path.join(self.result_path, "temp-images/")
         # path for thumbnail images
-        self.thumbnail_image_path = os.path.join(self.result_path, "thumbnails/")
+        self.thumbnail_image_path = os.path.join(
+            self.result_path, "thumbnails/")
         # txt log
         self.log_path = os.path.join(self.result_path, "invoke_log.txt")
         # make all output paths
@@ -333,7 +349,8 @@ class InvokeAIWebServer:
                         )
                         os.remove(thumbnail_path)
                     except Exception as e:
-                        socketio.emit("error", {"message": f"Unable to delete {f}: {str(e)}"})
+                        socketio.emit(
+                            "error", {"message": f"Unable to delete {f}: {str(e)}"})
                         pass
 
                 socketio.emit("tempFolderEmptied")
@@ -348,7 +365,8 @@ class InvokeAIWebServer:
         def save_temp_image_to_gallery(url):
             try:
                 image_path = self.get_image_path_from_url(url)
-                new_path = os.path.join(self.result_path, os.path.basename(image_path))
+                new_path = os.path.join(
+                    self.result_path, os.path.basename(image_path))
                 shutil.copy2(image_path, new_path)
 
                 if os.path.splitext(new_path)[1] == ".png":
@@ -361,7 +379,8 @@ class InvokeAIWebServer:
                 (width, height) = pil_image.size
 
                 thumbnail_path = save_thumbnail(
-                    pil_image, os.path.basename(new_path), self.thumbnail_image_path
+                    pil_image, os.path.basename(
+                        new_path), self.thumbnail_image_path
                 )
 
                 image_array = [
@@ -424,7 +443,8 @@ class InvokeAIWebServer:
                         (width, height) = pil_image.size
 
                         thumbnail_path = save_thumbnail(
-                            pil_image, os.path.basename(path), self.thumbnail_image_path
+                            pil_image, os.path.basename(
+                                path), self.thumbnail_image_path
                         )
 
                         image_array.append(
@@ -442,7 +462,8 @@ class InvokeAIWebServer:
                             }
                         )
                     except Exception as e:
-                        socketio.emit("error", {"message": f"Unable to load {path}: {str(e)}"})
+                        socketio.emit(
+                            "error", {"message": f"Unable to load {path}: {str(e)}"})
                         pass
 
                 socketio.emit(
@@ -496,7 +517,8 @@ class InvokeAIWebServer:
                         (width, height) = pil_image.size
 
                         thumbnail_path = save_thumbnail(
-                            pil_image, os.path.basename(path), self.thumbnail_image_path
+                            pil_image, os.path.basename(
+                                path), self.thumbnail_image_path
                         )
 
                         image_array.append(
@@ -515,7 +537,8 @@ class InvokeAIWebServer:
                         )
                     except Exception as e:
                         print(f">> Unable to load {path}")
-                        socketio.emit("error", {"message": f"Unable to load {path}: {str(e)}"})
+                        socketio.emit(
+                            "error", {"message": f"Unable to load {path}: {str(e)}"})
                         pass
 
                 socketio.emit(
@@ -532,6 +555,73 @@ class InvokeAIWebServer:
 
                 traceback.print_exc()
                 print("\n")
+
+        # @socketio.on("generateImage")
+        # @socketio.on("stream")
+        def handle_stream_event(
+            generation_parameters, esrgan_parameters, facetool_parameters
+        ):
+            try:
+                # truncate long init_mask/init_img base64 if needed
+                printable_parameters = {
+                    **generation_parameters,
+                }
+
+                print(
+                    f">> Image generation requested: {printable_parameters}\nESRGAN parameters: {esrgan_parameters}\nFacetool parameters: {facetool_parameters}"
+                )
+
+                
+                printable_parameters["init_img"] = None
+                # print(printable_parameters)
+
+
+                bounding_box = {'top': 168, 'left': 24, 'width': 832, 'height': 448}
+                # generation_parameters["iteration"] = 1
+                # generation_parameters["height"] = bounding_box["height"]
+                # generation_parameters["width"] = bounding_box["width"]
+                # generation_parameters["generation_mode"] = "img2img"
+                # generation_parameters["init_img"] = None
+
+                # {'prompt': 'analog style; antifa holding guns at the Balenciaga fashion show', 'iterations': 6, 'steps': 30, 'cfg_scale': 8.5, 'threshold': 0, 'perlin': 0, 'height': 512, 'width': 512, 'sampler_name': 'k_euler_a', 'seed': 4256684483, 'progress_images': False, 'progress_latents': True, 'save_intermediates': 5, 'generation_mode': 'txt2img', 'init_mask': '', 'seamless': False, 'hires_fix': False, 'variation_amount': 0, 'init_img': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA0IAAAHACAIAAAAA20...'}
+                mask = generation_parameters["init_mask"]
+
+                sct = mss()
+
+                while not self.canceled.is_set():
+                    sct_img = sct.grab(bounding_box)
+                    img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
+
+                    generation_parameters["init_img"] = image_to_dataURL(img)
+                    generation_parameters["init_mask"] = mask
+                    printable_parameters["init_img"] = (generation_parameters["init_img"][:64] + "...")
+
+                    self.stream_images(
+                        generation_parameters,
+                        esrgan_parameters,
+                        facetool_parameters,
+                    )
+
+                # self.stream_images(
+                #     generation_parameters,
+                #     esrgan_parameters,
+                #     facetool_parameters,
+                # )
+
+                
+                # cv2.imshow('screen', np.array(sct_img))
+
+                # if (cv2.waitKey(1) & 0xFF) == ord('q'):
+                #     cv2.destroyAllWindows()
+                #     break
+
+            except Exception as e:
+                self.socketio.emit("error", {"message": (str(e))})
+                print("\n")
+
+                traceback.print_exc()
+                print("\n")
+
 
         @socketio.on("generateImage")
         def handle_generate_image_event(
@@ -772,7 +862,8 @@ class InvokeAIWebServer:
 
                 init_img_url = generation_parameters["init_img"]
 
-                original_bounding_box = generation_parameters["bounding_box"].copy()
+                original_bounding_box = generation_parameters["bounding_box"].copy(
+                )
 
                 initial_image = dataURL_to_image(
                     generation_parameters["init_img"]
@@ -849,88 +940,11 @@ class InvokeAIWebServer:
             elif generation_parameters["generation_mode"] == "img2img":
                 init_img_url = generation_parameters["init_img"]
                 init_img_path = self.get_image_path_from_url(init_img_url)
-                generation_parameters["init_img"] = Image.open(init_img_path).convert('RGB')
+                generation_parameters["init_img"] = Image.open(
+                    init_img_path).convert('RGB')
 
             def image_progress(sample, step):
-                if self.canceled.is_set():
-                    raise CanceledException
-
-                nonlocal step_index
-                nonlocal generation_parameters
-                nonlocal progress
-
-                generation_messages = {
-                    "txt2img": "Text to Image",
-                    "img2img": "Image to Image",
-                    "inpainting": "Inpainting",
-                    "outpainting": "Outpainting",
-                }
-
-                progress.set_current_step(step + 1)
-                progress.set_current_status(
-                    f"Generating ({generation_messages[actual_generation_mode]})"
-                )
-                progress.set_current_status_has_steps(True)
-
-                if (
-                    generation_parameters["progress_images"]
-                    and step % generation_parameters["save_intermediates"] == 0
-                    and step < generation_parameters["steps"] - 1
-                ):
-                    image = self.generate.sample_to_image(sample)
-                    metadata = self.parameters_to_generated_image_metadata(
-                        generation_parameters
-                    )
-                    command = parameters_to_command(generation_parameters)
-
-                    (width, height) = image.size
-
-                    path = self.save_result_image(
-                        image,
-                        command,
-                        metadata,
-                        self.intermediate_path,
-                        step_index=step_index,
-                        postprocessing=False,
-                    )
-
-                    step_index += 1
-                    self.socketio.emit(
-                        "intermediateResult",
-                        {
-                            "url": self.get_url_from_image_path(path),
-                            "mtime": os.path.getmtime(path),
-                            "metadata": metadata,
-                            "width": width,
-                            "height": height,
-                            "generationMode": generation_parameters["generation_mode"],
-                            "boundingBox": original_bounding_box,
-                        },
-                    )
-
-
-                if generation_parameters["progress_latents"]:
-                    image = self.generate.sample_to_lowres_estimated_image(sample)
-                    (width, height) = image.size
-                    width *= 8
-                    height *= 8
-                    img_base64 = image_to_dataURL(image)
-                    self.socketio.emit(
-                        "intermediateResult",
-                        {
-                            "url": img_base64,
-                            "isBase64": True,
-                            "mtime": 0,
-                            "metadata": {},
-                            "width": width,
-                            "height": height,
-                            "generationMode": generation_parameters["generation_mode"],
-                            "boundingBox": original_bounding_box,
-                        },
-                    )
-
-                self.socketio.emit("progressUpdate", progress.to_formatted_dict())
-                eventlet.sleep(0)
+                pass
 
             def image_done(image, seed, first_seed, attention_maps_image=None):
                 if self.canceled.is_set():
@@ -957,7 +971,8 @@ class InvokeAIWebServer:
 
                 progress.set_current_status("Generation Complete")
 
-                self.socketio.emit("progressUpdate", progress.to_formatted_dict())
+                self.socketio.emit(
+                    "progressUpdate", progress.to_formatted_dict())
                 eventlet.sleep(0)
 
                 all_parameters = generation_parameters
@@ -968,7 +983,8 @@ class InvokeAIWebServer:
                     and all_parameters["variation_amount"] > 0
                 ):
                     first_seed = first_seed or seed
-                    this_variation = [[seed, all_parameters["variation_amount"]]]
+                    this_variation = [
+                        [seed, all_parameters["variation_amount"]]]
                     all_parameters["with_variations"] = (
                         prior_variations + this_variation
                     )
@@ -984,7 +1000,8 @@ class InvokeAIWebServer:
                 if esrgan_parameters:
                     progress.set_current_status("Upscaling")
                     progress.set_current_status_has_steps(False)
-                    self.socketio.emit("progressUpdate", progress.to_formatted_dict())
+                    self.socketio.emit(
+                        "progressUpdate", progress.to_formatted_dict())
                     eventlet.sleep(0)
 
                     image = self.esrgan.process(
@@ -1007,10 +1024,12 @@ class InvokeAIWebServer:
                     if facetool_parameters["type"] == "gfpgan":
                         progress.set_current_status("Restoring Faces (GFPGAN)")
                     elif facetool_parameters["type"] == "codeformer":
-                        progress.set_current_status("Restoring Faces (Codeformer)")
+                        progress.set_current_status(
+                            "Restoring Faces (Codeformer)")
 
                     progress.set_current_status_has_steps(False)
-                    self.socketio.emit("progressUpdate", progress.to_formatted_dict())
+                    self.socketio.emit(
+                        "progressUpdate", progress.to_formatted_dict())
                     eventlet.sleep(0)
 
                     if facetool_parameters["type"] == "gfpgan":
@@ -1040,7 +1059,8 @@ class InvokeAIWebServer:
                     all_parameters["facetool_type"] = facetool_parameters["type"]
 
                 progress.set_current_status("Saving Image")
-                self.socketio.emit("progressUpdate", progress.to_formatted_dict())
+                self.socketio.emit(
+                    "progressUpdate", progress.to_formatted_dict())
                 eventlet.sleep(0)
 
                 # restore the stashed URLS and discard the paths, we are about to send the result to client
@@ -1051,12 +1071,14 @@ class InvokeAIWebServer:
                 )
 
                 if "init_mask" in all_parameters:
-                    all_parameters["init_mask"] = ""  # TODO: store the mask in metadata
+                    # TODO: store the mask in metadata
+                    all_parameters["init_mask"] = ""
 
                 if generation_parameters["generation_mode"] == "unifiedCanvas":
                     all_parameters["bounding_box"] = original_bounding_box
 
-                metadata = self.parameters_to_generated_image_metadata(all_parameters)
+                metadata = self.parameters_to_generated_image_metadata(
+                    all_parameters)
 
                 command = parameters_to_command(all_parameters)
 
@@ -1091,10 +1113,12 @@ class InvokeAIWebServer:
                 else:
                     progress.mark_complete()
 
-                self.socketio.emit("progressUpdate", progress.to_formatted_dict())
+                self.socketio.emit(
+                    "progressUpdate", progress.to_formatted_dict())
                 eventlet.sleep(0)
 
-                parsed_prompt, _ = get_prompt_structure(generation_parameters["prompt"])
+                parsed_prompt, _ = get_prompt_structure(
+                    generation_parameters["prompt"])
                 tokens = None if type(parsed_prompt) is Blend else \
                     get_tokens_for_prompt(self.generate.model, parsed_prompt)
                 attention_maps_image_base64_url = None if attention_maps_image is None \
@@ -1127,6 +1151,355 @@ class InvokeAIWebServer:
                 step_callback=image_progress,
                 image_callback=image_done
             )
+
+        except KeyboardInterrupt:
+            self.socketio.emit("processingCanceled")
+            raise
+        except CanceledException:
+            self.socketio.emit("processingCanceled")
+            pass
+        except Exception as e:
+            print(e)
+            self.socketio.emit("error", {"message": (str(e))})
+            print("\n")
+
+            traceback.print_exc()
+            print("\n")
+
+    def stream_images(
+        self, generation_parameters, esrgan_parameters, facetool_parameters
+    ):
+        try:
+            self.canceled.clear()
+
+            step_index = 1
+            prior_variations = (
+                generation_parameters["with_variations"]
+                if "with_variations" in generation_parameters
+                else []
+            )
+
+            actual_generation_mode = generation_parameters["generation_mode"]
+            original_bounding_box = None
+
+            progress = Progress(generation_parameters=generation_parameters)
+
+            self.socketio.emit("progressUpdate", progress.to_formatted_dict())
+            eventlet.sleep(0)
+
+            """
+            TODO:
+            If a result image is used as an init image, and then deleted, we will want to be
+            able to use it as an init image in the future. Need to handle this case.
+            """
+
+            """
+            Prepare for generation based on generation_mode
+            """
+            if generation_parameters["generation_mode"] == "unifiedCanvas":
+                """
+                generation_parameters["init_img"] is a base64 image
+                generation_parameters["init_mask"] is a base64 image
+
+                So we need to convert each into a PIL Image.
+                """
+
+                truncated_outpaint_image_b64 = generation_parameters["init_img"][:64]
+                truncated_outpaint_mask_b64 = generation_parameters["init_mask"][:64]
+
+                init_img_url = generation_parameters["init_img"]
+
+                original_bounding_box = generation_parameters["bounding_box"].copy(
+                )
+
+                initial_image = dataURL_to_image(
+                    generation_parameters["init_img"]
+                ).convert("RGBA")
+
+                """
+                The outpaint image and mask are pre-cropped by the UI, so the bounding box we pass
+                to the generator should be:
+                    {
+                        "x": 0,
+                        "y": 0,
+                        "width": original_bounding_box["width"],
+                        "height": original_bounding_box["height"]
+                    }
+                """
+
+                generation_parameters["bounding_box"]["x"] = 0
+                generation_parameters["bounding_box"]["y"] = 0
+
+                # Convert mask dataURL to an image and convert to greyscale
+                mask_image = dataURL_to_image(
+                    generation_parameters["init_mask"]
+                ).convert("L")
+
+                actual_generation_mode = get_canvas_generation_mode(
+                    initial_image, mask_image
+                )
+
+                """
+                Apply the mask to the init image, creating a "mask" image with
+                transparency where inpainting should occur. This is the kind of
+                mask that prompt2image() needs.
+                """
+                alpha_mask = initial_image.copy()
+                alpha_mask.putalpha(mask_image)
+
+                generation_parameters["init_img"] = initial_image
+                generation_parameters["init_mask"] = alpha_mask
+
+                # Remove the unneeded parameters for whichever mode we are doing
+                if actual_generation_mode == "inpainting":
+                    generation_parameters.pop("seam_size", None)
+                    generation_parameters.pop("seam_blur", None)
+                    generation_parameters.pop("seam_strength", None)
+                    generation_parameters.pop("seam_steps", None)
+                    generation_parameters.pop("tile_size", None)
+                    generation_parameters.pop("force_outpaint", None)
+                elif actual_generation_mode == "img2img":
+                    generation_parameters["height"] = original_bounding_box["height"]
+                    generation_parameters["width"] = original_bounding_box["width"]
+                    generation_parameters.pop("init_mask", None)
+                    generation_parameters.pop("seam_size", None)
+                    generation_parameters.pop("seam_blur", None)
+                    generation_parameters.pop("seam_strength", None)
+                    generation_parameters.pop("seam_steps", None)
+                    generation_parameters.pop("tile_size", None)
+                    generation_parameters.pop("force_outpaint", None)
+                    generation_parameters.pop("infill_method", None)
+                elif actual_generation_mode == "txt2img":
+                    generation_parameters["height"] = original_bounding_box["height"]
+                    generation_parameters["width"] = original_bounding_box["width"]
+                    generation_parameters.pop("strength", None)
+                    generation_parameters.pop("fit", None)
+                    generation_parameters.pop("init_img", None)
+                    generation_parameters.pop("init_mask", None)
+                    generation_parameters.pop("seam_size", None)
+                    generation_parameters.pop("seam_blur", None)
+                    generation_parameters.pop("seam_strength", None)
+                    generation_parameters.pop("seam_steps", None)
+                    generation_parameters.pop("tile_size", None)
+                    generation_parameters.pop("force_outpaint", None)
+                    generation_parameters.pop("infill_method", None)
+
+            elif generation_parameters["generation_mode"] == "img2img":
+                init_img_url = generation_parameters["init_img"]
+                init_img_path = self.get_image_path_from_url(init_img_url)
+                generation_parameters["init_img"] = Image.open(
+                    init_img_path).convert('RGB')
+
+            def image_progress(sample, step):
+                pass
+
+            def image_done(image, seed, first_seed, attention_maps_image=None):
+                if self.canceled.is_set():
+                    raise CanceledException
+
+                nonlocal generation_parameters
+                nonlocal esrgan_parameters
+                nonlocal facetool_parameters
+                nonlocal progress
+
+                step_index = 1
+                nonlocal prior_variations
+
+                """
+                Tidy up after generation based on generation_mode
+                """
+                # paste the inpainting image back onto the original
+                if generation_parameters["generation_mode"] == "inpainting":
+                    image = paste_image_into_bounding_box(
+                        Image.open(init_img_path),
+                        image,
+                        **generation_parameters["bounding_box"],
+                    )
+
+                progress.set_current_status("Generation Complete")
+
+                self.socketio.emit(
+                    "progressUpdate", progress.to_formatted_dict())
+                eventlet.sleep(0)
+
+                all_parameters = generation_parameters
+                postprocessing = False
+
+                if (
+                    "variation_amount" in all_parameters
+                    and all_parameters["variation_amount"] > 0
+                ):
+                    first_seed = first_seed or seed
+                    this_variation = [
+                        [seed, all_parameters["variation_amount"]]]
+                    all_parameters["with_variations"] = (
+                        prior_variations + this_variation
+                    )
+                    all_parameters["seed"] = first_seed
+                elif "with_variations" in all_parameters:
+                    all_parameters["seed"] = first_seed
+                else:
+                    all_parameters["seed"] = seed
+
+                if self.canceled.is_set():
+                    raise CanceledException
+
+                if esrgan_parameters:
+                    progress.set_current_status("Upscaling")
+                    progress.set_current_status_has_steps(False)
+                    self.socketio.emit(
+                        "progressUpdate", progress.to_formatted_dict())
+                    eventlet.sleep(0)
+
+                    image = self.esrgan.process(
+                        image=image,
+                        upsampler_scale=esrgan_parameters["level"],
+                        strength=esrgan_parameters["strength"],
+                        seed=seed,
+                    )
+
+                    postprocessing = True
+                    all_parameters["upscale"] = [
+                        esrgan_parameters["level"],
+                        esrgan_parameters["strength"],
+                    ]
+
+                if self.canceled.is_set():
+                    raise CanceledException
+
+                if facetool_parameters:
+                    if facetool_parameters["type"] == "gfpgan":
+                        progress.set_current_status("Restoring Faces (GFPGAN)")
+                    elif facetool_parameters["type"] == "codeformer":
+                        progress.set_current_status(
+                            "Restoring Faces (Codeformer)")
+
+                    progress.set_current_status_has_steps(False)
+                    self.socketio.emit(
+                        "progressUpdate", progress.to_formatted_dict())
+                    eventlet.sleep(0)
+
+                    if facetool_parameters["type"] == "gfpgan":
+                        image = self.gfpgan.process(
+                            image=image,
+                            strength=facetool_parameters["strength"],
+                            seed=seed,
+                        )
+                    elif facetool_parameters["type"] == "codeformer":
+                        image = self.codeformer.process(
+                            image=image,
+                            strength=facetool_parameters["strength"],
+                            fidelity=facetool_parameters["codeformer_fidelity"],
+                            seed=seed,
+                            device="cpu"
+                            if str(self.generate.device) == "mps"
+                            else self.generate.device,
+                        )
+                        all_parameters["codeformer_fidelity"] = facetool_parameters[
+                            "codeformer_fidelity"
+                        ]
+
+                    postprocessing = True
+                    all_parameters["facetool_strength"] = facetool_parameters[
+                        "strength"
+                    ]
+                    all_parameters["facetool_type"] = facetool_parameters["type"]
+
+                progress.set_current_status("Saving Image")
+                self.socketio.emit(
+                    "progressUpdate", progress.to_formatted_dict())
+                eventlet.sleep(0)
+
+                # restore the stashed URLS and discard the paths, we are about to send the result to client
+                all_parameters["init_img"] = (
+                    init_img_url
+                    if generation_parameters["generation_mode"] == "img2img"
+                    else ""
+                )
+
+                if "init_mask" in all_parameters:
+                    # TODO: store the mask in metadata
+                    all_parameters["init_mask"] = ""
+
+                if generation_parameters["generation_mode"] == "unifiedCanvas":
+                    all_parameters["bounding_box"] = original_bounding_box
+
+                metadata = self.parameters_to_generated_image_metadata(
+                    all_parameters)
+
+                command = parameters_to_command(all_parameters)
+
+                (width, height) = image.size
+
+                generated_image_outdir = (
+                    self.result_path
+                    if generation_parameters["generation_mode"]
+                    in ["txt2img", "img2img"]
+                    else self.temp_image_path
+                )
+
+                path = self.save_result_image(
+                    image,
+                    command,
+                    metadata,
+                    generated_image_outdir,
+                    postprocessing=postprocessing,
+                )
+
+                thumbnail_path = save_thumbnail(
+                    image, os.path.basename(path), self.thumbnail_image_path
+                )
+
+                print(f'>> Image generated: "{path}"')
+                self.write_log_message(f'[Generated] "{path}": {command}')
+
+                if progress.total_iterations > progress.current_iteration:
+                    progress.set_current_step(1)
+                    progress.set_current_status("Iteration complete")
+                    progress.set_current_status_has_steps(False)
+                else:
+                    progress.mark_complete()
+
+                self.socketio.emit(
+                    "progressUpdate", progress.to_formatted_dict())
+                eventlet.sleep(0)
+
+                parsed_prompt, _ = get_prompt_structure(
+                    generation_parameters["prompt"])
+                tokens = None if type(parsed_prompt) is Blend else \
+                    get_tokens_for_prompt(self.generate.model, parsed_prompt)
+                attention_maps_image_base64_url = None if attention_maps_image is None \
+                    else image_to_dataURL(attention_maps_image)
+
+                self.socketio.emit(
+                    "generationResult",
+                    {
+                        "url": self.get_url_from_image_path(path),
+                        "thumbnail": self.get_url_from_image_path(thumbnail_path),
+                        "mtime": os.path.getmtime(path),
+                        "metadata": metadata,
+                        "dreamPrompt": command,
+                        "width": width,
+                        "height": height,
+                        "boundingBox": original_bounding_box,
+                        "generationMode": generation_parameters["generation_mode"],
+                        "attentionMaps": attention_maps_image_base64_url,
+                        "tokens": tokens,
+                    },
+                )
+                eventlet.sleep(0)
+
+                progress.set_current_iteration(progress.current_iteration + 1)
+
+            print(generation_parameters)
+
+            results = self.generate.prompt2image(
+                **generation_parameters,
+                step_callback=image_progress,
+                image_callback=image_done
+            )
+
+            cv2.imshow('screen', np.array(results[0][0]))
 
         except KeyboardInterrupt:
             self.socketio.emit("processingCanceled")
@@ -1252,7 +1625,8 @@ class InvokeAIWebServer:
         self, parameters, original_image_path
     ):
         try:
-            current_metadata = retrieve_metadata(original_image_path)["sd-metadata"]
+            current_metadata = retrieve_metadata(
+                original_image_path)["sd-metadata"]
             postprocessing_metadata = {}
 
             """
@@ -1291,7 +1665,8 @@ class InvokeAIWebServer:
                     postprocessing_metadata
                 )
             else:
-                current_metadata["image"]["postprocessing"] = [postprocessing_metadata]
+                current_metadata["image"]["postprocessing"] = [
+                    postprocessing_metadata]
 
             return current_metadata
 
@@ -1403,7 +1778,8 @@ class InvokeAIWebServer:
                 )
             elif "thumbnails" in url:
                 return os.path.abspath(
-                    os.path.join(self.thumbnail_image_path, os.path.basename(url))
+                    os.path.join(self.thumbnail_image_path,
+                                 os.path.basename(url))
                 )
             else:
                 return os.path.abspath(
@@ -1572,9 +1948,11 @@ def dataURL_to_image(dataURL: str) -> ImageType:
     )
     return image
 
+
 """
 Converts an image into a base64 image dataURL.
 """
+
 
 def image_to_dataURL(image: ImageType) -> str:
     buffered = io.BytesIO()
@@ -1583,7 +1961,6 @@ def image_to_dataURL(image: ImageType) -> str:
         buffered.getvalue()
     ).decode("UTF-8")
     return image_base64
-
 
 
 """
