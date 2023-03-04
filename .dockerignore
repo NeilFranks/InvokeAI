@@ -1,26 +1,25 @@
+# use this file as a whitelist
 *
-!backend
-!frontend
-!binary_installer
+!invokeai
 !ldm
-!main.py
-!scripts
-!server
-!static
-!setup.py
-!docker-build
-!docs
-docker-build/Dockerfile
+!pyproject.toml
+
+# ignore frontend but whitelist dist
+invokeai/frontend/
+!invokeai/frontend/dist/
+
+# ignore invokeai/assets but whitelist invokeai/assets/web
+invokeai/assets/
+!invokeai/assets/web/
 
 # Guard against pulling in any models that might exist in the directory tree
 **/*.pt*
+**/*.ckpt
 
-# unignore configs, but only ignore the custom models.yaml, in case it exists
-!configs
-configs/models.yaml
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.py[cod]
 
-# unignore environment dirs/files, but ignore the environment.yml file or symlink in case it exists
-!environment*
-environment.yml
-
-**/__pycache__
+# Distribution / packaging
+**/*.egg-info/
+**/*.egg

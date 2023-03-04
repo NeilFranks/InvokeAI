@@ -4,59 +4,72 @@ title: WebUI Hotkey List
 
 # :material-keyboard: **WebUI Hotkey List**
 
-## General
+## App Hotkeys
 
-| Setting           | Hotkey                 |
-| ----------------- | ---------------------- |
-| ++a++             | Set All Parameters     |
-| ++s++             | Set Seed               |
-| ++u++             | Upscale                |
-| ++r++             | Restoration            |
-| ++i++             | Show Metadata          |
-| ++d++ ++d++ ++l++ | Delete Image           |
-| ++alt+a++         | Focus prompt input     |
-| ++shift+i++       | Send To Image to Image |
-| ++ctrl+enter++    | Start processing       |
-| ++shift+x++       | cancel Processing      |
-| ++shift+d++       | Toggle Dark Mode       |
-| ++"`"++           | Toggle console         |
+| Setting         | Hotkey             |
+| --------------- | ------------------ |
+| ++ctrl+enter++  | Invoke             |
+| ++shift+x++     | Cancel             |
+| ++alt+a++       | Focus Prompt       |
+| ++o++           | Toggle Options     |
+| ++shift+o++     | Pin Options        |
+| ++z++           | Toggle Viewer      |
+| ++g++           | Toggle Gallery     |
+| ++f++           | Maximize Workspace |
+| ++1++ - ++5++   | Change Tabs        |
+| ++"`"++         | Toggle Console     |
 
-## Tabs
+## General Hotkeys
 
-| Setting | Hotkey                    |
-| ------- | ------------------------- |
-| ++1++   | Go to Text To Image Tab   |
-| ++2++   | Go to Image to Image Tab  |
-| ++3++   | Go to Inpainting Tab      |
-| ++4++   | Go to Outpainting Tab     |
-| ++5++   | Go to Nodes Tab           |
-| ++6++   | Go to Post Processing Tab |
+| Setting        | Hotkey                 |
+| -------------- | ---------------------- |
+| ++p++          | Set Prompt             |
+| ++s++          | Set Seed               |
+| ++a++          | Set Parameters         |
+| ++shift+r++    | Restore Faces          |
+| ++shift+u++    | Upscale                |
+| ++i++          | Show Info              |
+| ++shift+i++    | Send To Image To Image |
+| ++del++        | Delete Image           |
+| ++esc++        | Close Panels           |
 
-## Gallery
+## Gallery Hotkeys
 
-| Setting        | Hotkey                          |
-| -------------- | ------------------------------- |
-| ++g++          | Toggle Gallery                  |
-| ++left++       | Go to previous image in gallery |
-| ++right++      | Go to next image in gallery     |
-| ++shift+p++    | Pin gallery                     |
-| ++shift+up++   | Increase gallery image size     |
-| ++shift+down++ | Decrease gallery image size     |
-| ++shift+r++    | Reset image gallery size        |
+| Setting               | Hotkey                      |
+| ----------------------| --------------------------- |
+| ++arrow-left++        | Previous Image              |
+| ++arrow-right++       | Next Image                  |
+| ++shift+g++           | Toggle Gallery Pin          |
+| ++shift+arrow-up++    | Increase Gallery Image Size |
+| ++shift+arrow-down++  | Decrease Gallery Image Size |
 
-## Inpainting
+## Unified Canvas Hotkeys
 
-| Setting                      | Hotkey                |
-| ---------------------------- | --------------------- |
-| ++"["++                      | Decrease brush size   |
-| ++"]"++                      | Increase brush size   |
-| ++alt+"["++                  | Decrease mask opacity |
-| ++alt+"]"++                  | Increase mask opacity |
-| ++b++                        | Select brush          |
-| ++e++                        | Select eraser         |
-| ++ctrl+z++                   | Undo brush stroke     |
-| ++ctrl+shift+z++, ++ctrl+y++ | Redo brush stroke     |
-| ++h++                        | Hide mask             |
-| ++shift+m++                  | Invert mask           |
-| ++shift+c++                  | Clear mask            |
-| ++shift+j++                  | Expand canvas         |
+| Setting                           | Hotkey                 |
+| --------------------------------- | ---------------------- |
+| ++b++                             | Select Brush           |
+| ++e++                             | Select Eraser          |
+| ++bracket-left++                  | Decrease Brush Size    |
+| ++bracket-right++                 | Increase Brush Size    |
+| ++shift+bracket-left++            | Decrease Brush Opacity |
+| ++shift+bracket-right++           | Increase Brush Opacity |
+| ++v++                             | Move Tool              |
+| ++shift+f++                       | Fill Bounding Box      |
+| ++del++ / ++backspace++           | Erase Bounding Box     |
+| ++c++                             | Select Color Picker    |
+| ++n++                             | Toggle Snap            |
+| ++"Hold Space"++                  | Quick Toggle Move      |
+| ++q++                             | Toggle Layer           |
+| ++shift+c++                       | Clear Mask             |
+| ++h++                             | Hide Mask              |
+| ++shift+h++                       | Show/Hide Bounding Box |
+| ++shift+m++                       | Merge Visible          |
+| ++shift+s++                       | Save To Gallery        |
+| ++ctrl+c++                        | Copy To Clipboard      |
+| ++shift+d++                       | Download Image         |
+| ++ctrl+z++                        | Undo                   |
+| ++ctrl+y++ / ++ctrl+shift+z++     | Redo                   |
+| ++r++                             | Reset View             |
+| ++arrow-left++                    | Previous Staging Image |
+| ++arrow-right++                   | Next Staging Image     |
+| ++enter++                         | Accept Staging Image   |

@@ -2,6 +2,8 @@
 *.psd
 
 # ignore default image save location and model symbolic link
+.idea/
+embeddings/
 outputs/
 models/ldm/stable-diffusion-v1/model.ckpt
 **/restoration/codeformer/weights
@@ -69,11 +71,13 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+cov.xml
 *.cover
 *.py,cover
 .hypothesis/
 .pytest_cache/
 cover/
+junit/
 
 # Translations
 *.mo
@@ -197,7 +201,7 @@ checkpoints
 .DS_Store
 
 # Let the frontend manage its own gitignore
-!frontend/*
+!invokeai/frontend/web/*
 
 # Scratch folder
 .scratch/
@@ -211,11 +215,6 @@ gfpgan/
 
 # config file (will be created by installer)
 configs/models.yaml
-
-# weights (will be created by installer)
-models/ldm/stable-diffusion-v1/*.ckpt
-models/clipseg
-models/gfpgan
 
 # ignore initfile
 .invokeai
@@ -231,9 +230,3 @@ installer/install.bat
 installer/install.sh
 installer/update.bat
 installer/update.sh
-
-# this may be present if the user created a venv
-invokeai
-
-# no longer stored in source directory
-models

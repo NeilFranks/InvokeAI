@@ -3,128 +3,146 @@ on:
   push:
     branches:
       - 'main'
-      - 'development'
+    paths:
+      - 'pyproject.toml'
+      - 'invokeai/**'
+      - 'invokeai/backend/**'
+      - 'invokeai/configs/**'
+      - 'invokeai/frontend/dist/**'
   pull_request:
-    branches:
-      - 'main'
-      - 'development'
+    paths:
+      - 'pyproject.toml'
+      - 'invokeai/**'
+      - 'invokeai/backend/**'
+      - 'invokeai/configs/**'
+      - 'invokeai/frontend/dist/**'
+    types:
+      - 'ready_for_review'
+      - 'opened'
+      - 'synchronize'
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   matrix:
+    if: github.event.pull_request.draft == false
     strategy:
       matrix:
-        stable-diffusion-model:
-          - stable-diffusion-1.5
-        requirements-file:
-          - requirements-lin-cuda.txt
-          - requirements-lin-amd.txt
-          - requirements-mac-mps-cpu.txt
-          - requirements-win-colab-cuda.txt
         python-version:
           # - '3.9'
           - '3.10'
+        pytorch:
+          # - linux-cuda-11_6
+          - linux-cuda-11_7
+          - linux-rocm-5_2
+          - linux-cpu
+          - macos-default
+          - windows-cpu
+          # - windows-cuda-11_6
+          # - windows-cuda-11_7
         include:
-          - requirements-file: requirements-lin-cuda.txt
+          # - pytorch: linux-cuda-11_6
+          #   os: ubuntu-22.04
+          #   extra-index-url: 'https://download.pytorch.org/whl/cu116'
+          #   github-env: $GITHUB_ENV
+          - pytorch: linux-cuda-11_7
             os: ubuntu-22.04
-            curl-command: curl
             github-env: $GITHUB_ENV
-          - requirements-file: requirements-lin-amd.txt
+          - pytorch: linux-rocm-5_2
             os: ubuntu-22.04
-            curl-command: curl
+            extra-index-url: 'https://download.pytorch.org/whl/rocm5.2'
             github-env: $GITHUB_ENV
-          - requirements-file: requirements-mac-mps-cpu.txt
+          - pytorch: linux-cpu
+            os: ubuntu-22.04
+            extra-index-url: 'https://download.pytorch.org/whl/cpu'
+            github-env: $GITHUB_ENV
+          - pytorch: macos-default
             os: macOS-12
-            curl-command: curl
             github-env: $GITHUB_ENV
-          - requirements-file: requirements-win-colab-cuda.txt
+          - pytorch: windows-cpu
             os: windows-2022
-            curl-command: curl.exe
             github-env: $env:GITHUB_ENV
-          - stable-diffusion-model: stable-diffusion-1.5
-            stable-diffusion-model-url: https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.ckpt
-            stable-diffusion-model-dl-path: models/ldm/stable-diffusion-v1
-            stable-diffusion-model-dl-name: v1-5-pruned-emaonly.ckpt
-    name: ${{ matrix.requirements-file }} on ${{ matrix.python-version }}
+          # - pytorch: windows-cuda-11_6
+          #   os: windows-2022
+          #   extra-index-url: 'https://download.pytorch.org/whl/cu116'
+          #   github-env: $env:GITHUB_ENV
+          # - pytorch: windows-cuda-11_7
+          #   os: windows-2022
+          #   extra-index-url: 'https://download.pytorch.org/whl/cu117'
+          #   github-env: $env:GITHUB_ENV
+    name: ${{ matrix.pytorch }} on ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
+    env:
+      PIP_USE_PEP517: '1'
     steps:
       - name: Checkout sources
         id: checkout-sources
         uses: actions/checkout@v3
 
-      - name: set INVOKEAI_ROOT Windows
-        if: matrix.os == 'windows-2022'
-        run: |
-          echo "INVOKEAI_ROOT=${{ github.workspace }}\invokeai" >> ${{ matrix.github-env }}
-          echo "INVOKEAI_OUTDIR=${{ github.workspace }}\invokeai\outputs" >> ${{ matrix.github-env }}
-
-      - name: set INVOKEAI_ROOT others
-        if: matrix.os != 'windows-2022'
-        run: |
-          echo "INVOKEAI_ROOT=${{ github.workspace }}/invokeai" >> ${{ matrix.github-env }}
-          echo "INVOKEAI_OUTDIR=${{ github.workspace }}/invokeai/outputs" >> ${{ matrix.github-env }}
-
-      - name: create models.yaml from example
-        run: |
-          mkdir -p ${{ env.INVOKEAI_ROOT }}/configs
-          cp configs/models.yaml.example ${{ env.INVOKEAI_ROOT }}/configs/models.yaml
-
       - name: set test prompt to main branch validation
         if: ${{ github.ref == 'refs/heads/main' }}
         run: echo "TEST_PROMPTS=tests/preflight_prompts.txt" >> ${{ matrix.github-env }}
 
-      - name: set test prompt to development branch validation
-        if: ${{ github.ref == 'refs/heads/development' }}
-        run: echo "TEST_PROMPTS=tests/dev_prompts.txt" >> ${{ matrix.github-env }}
-
       - name: set test prompt to Pull Request validation
-        if: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/development' }}
+        if: ${{ github.ref != 'refs/heads/main' }}
         run: echo "TEST_PROMPTS=tests/validate_pr_prompt.txt" >> ${{ matrix.github-env }}
-
-      - name: create requirements.txt
-        run: cp 'environments-and-requirements/${{ matrix.requirements-file }}' '${{ matrix.requirements-file }}'
 
       - name: setup python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          # cache: 'pip'
-          # cache-dependency-path: ${{ matrix.requirements-file }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
-      # - name: install dependencies
-      #   run: ${{ env.pythonLocation }}/bin/pip install --upgrade pip setuptools wheel
-
-      - name: install requirements
-        run: pip3 install -r '${{ matrix.requirements-file }}'
-
-      - name: Use Cached Stable Diffusion Model
-        id: cache-sd-model
-        uses: actions/cache@v3
+      - name: install invokeai
         env:
-          cache-name: cache-${{ matrix.stable-diffusion-model }}
-        with:
-          path: ${{ env.INVOKEAI_ROOT }}/${{ matrix.stable-diffusion-model-dl-path }}
-          key: ${{ env.cache-name }}
+          PIP_EXTRA_INDEX_URL: ${{ matrix.extra-index-url }}
+        run: >
+          pip3 install
+          --editable=".[test]"
 
-      - name: Download ${{ matrix.stable-diffusion-model }}
-        id: download-stable-diffusion-model
-        if: ${{ steps.cache-sd-model.outputs.cache-hit != 'true' }}
-        run: |
-          mkdir -p "${{ env.INVOKEAI_ROOT }}/${{ matrix.stable-diffusion-model-dl-path }}"
-          ${{ matrix.curl-command }} -H "Authorization: Bearer ${{ secrets.HUGGINGFACE_TOKEN }}" -o "${{ env.INVOKEAI_ROOT }}/${{ matrix.stable-diffusion-model-dl-path }}/${{ matrix.stable-diffusion-model-dl-name }}" -L ${{ matrix.stable-diffusion-model-url }}
+      - name: run pytest
+        id: run-pytest
+        run: pytest
 
-      - name: run configure_invokeai.py
+      - name: set INVOKEAI_OUTDIR
+        run: >
+          python -c
+          "import os;from invokeai.backend.globals import Globals;OUTDIR=os.path.join(Globals.root,str('outputs'));print(f'INVOKEAI_OUTDIR={OUTDIR}')"
+          >> ${{ matrix.github-env }}
+
+      - name: run invokeai-configure
         id: run-preload-models
-        run: python3 scripts/configure_invokeai.py --no-interactive --yes
+        env:
+          HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+        run: >
+          invokeai-configure
+          --yes
+          --default_only
+          --full-precision
+        # can't use fp16 weights without a GPU
 
-      - name: Run the tests
-        id: run-tests
-        if: matrix.os != 'windows-2022'
-        run: python3 scripts/invoke.py --no-patchmatch --no-nsfw_checker --model ${{ matrix.stable-diffusion-model }} --from_file ${{ env.TEST_PROMPTS }} --root="${{ env.INVOKEAI_ROOT }}" --outdir="${{ env.INVOKEAI_OUTDIR }}"
+      - name: run invokeai
+        id: run-invokeai
+        env:
+          # Set offline mode to make sure configure preloaded successfully.
+          HF_HUB_OFFLINE: 1
+          HF_DATASETS_OFFLINE: 1
+          TRANSFORMERS_OFFLINE: 1
+        run: >
+          invokeai
+          --no-patchmatch
+          --no-nsfw_checker
+          --from_file ${{ env.TEST_PROMPTS }}
+          --outdir ${{ env.INVOKEAI_OUTDIR }}/${{ matrix.python-version }}/${{ matrix.pytorch }}
 
       - name: Archive results
         id: archive-results
-        if: matrix.os != 'windows-2022'
         uses: actions/upload-artifact@v3
         with:
-          name: results_${{ matrix.requirements-file }}_${{ matrix.python-version }}
-          path: ${{ env.INVOKEAI_ROOT }}/outputs
+          name: results
+          path: ${{ env.INVOKEAI_OUTDIR }}
